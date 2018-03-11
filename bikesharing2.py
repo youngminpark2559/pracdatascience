@@ -166,4 +166,41 @@ df["rmsle"] = df["mean_validation_score"].apply(lambda x:-x)
 plt.xticks(rotation=30, ha='right')
 sns.pointplot(data=df,x="alpha",y="rmsle",ax=ax)
 
+# {'alpha': 0.01, 'max_iter': 3000}
+# RMSLE Value For Ridge Regression:  0.980369790278
+
+# One of regularization methods - Lasso
+# Lasso regularization which is call L1 regularization tries to make a coefficient closer to 0
+# Some coefficient even becomes 0, which means the feature excluded from data can be occurred
+# It also can be meant that automatic feature selection is performed
+# Default value of alpha is 1.0, to make underfitting decreased, I should make alpha value lower
+# When I execute the following Lasso-regularized model, best alpha value is 0.0025
+
+lasso_m_ = Lasso()
+alpha  = 1/np.array([0.1, 1, 2, 3, 4, 10, 30,100,200,300,400,800,900,1000])
+lasso_params_ = { 'max_iter':[3000],'alpha':alpha}
+
+grid_lasso_m = GridSearchCV(lasso_m_,lasso_params_,scoring = rmsle_scorer,cv=5)
+y_train_log = np.log1p(y_train)
+grid_lasso_m.fit( X_train , y_train_log )
+preds = grid_lasso_m.predict(X_train)
+print(grid_lasso_m.best_params_)
+print("RMSLE Value For Lasso Regression: ",rmsle(np.exp(y_train_log),np.exp(preds),False))
+
+fig,ax= plt.subplots()
+fig.set_size_inches(12,5)
+df = pd.DataFrame(grid_lasso_m.grid_scores_)
+df["alpha"] = df["parameters"].apply(lambda x:x["alpha"])
+df["rmsle"] = df["mean_validation_score"].apply(lambda x:-x)
+
+plt.xticks(rotation=30, ha='right')
+sns.pointplot(data=df,x="alpha",y="rmsle",ax=ax)
+# {'alpha': 0.00125, 'max_iter': 3000}
+# RMSLE Value For Lasso Regression:  0.980372782146
+
+
+
+
+
+
 plt.show()
