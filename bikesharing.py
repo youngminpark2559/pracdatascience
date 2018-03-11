@@ -50,18 +50,18 @@ test["dayofweek"] = test["datetime"].dt.dayofweek
 # I visualize data
 # I can see there are a lot of data on windspeed 0
 # It might come from a bad measurement so I need to refine them
-fig, axes = plt.subplots(nrows=2)
-fig.set_size_inches(18,10)
+# fig, axes = plt.subplots(nrows=2)
+# fig.set_size_inches(18,10)
 
-plt.sca(axes[0])
-plt.xticks(rotation=30, ha='right')
-axes[0].set(ylabel='Count',title="train windspeed")
-sns.countplot(data=train, x="windspeed", ax=axes[0])
+# plt.sca(axes[0])
+# plt.xticks(rotation=30, ha='right')
+# axes[0].set(ylabel='Count',title="train windspeed")
+# sns.countplot(data=train, x="windspeed", ax=axes[0])
 
-plt.sca(axes[1])
-plt.xticks(rotation=30, ha='right')
-axes[1].set(ylabel='Count',title="test windspeed")
-sns.countplot(data=test, x="windspeed", ax=axes[1])
+# plt.sca(axes[1])
+# plt.xticks(rotation=30, ha='right')
+# axes[1].set(ylabel='Count',title="test windspeed")
+# sns.countplot(data=test, x="windspeed", ax=axes[1])
 
 
 
@@ -69,9 +69,9 @@ sns.countplot(data=test, x="windspeed", ax=axes[1])
 trainWind0 = train.loc[train['windspeed'] == 0]
 trainWindNot0 = train.loc[train['windspeed'] != 0]
 # I can see windspeed not 0 is much more many than windspeed 0
-print(trainWind0.shape)
+# print(trainWind0.shape)
 # (1313, 19)
-print(trainWindNot0.shape)
+# print(trainWindNot0.shape)
 # (9573, 19)
 
 
@@ -132,10 +132,10 @@ sns.countplot(data=train, x="windspeed", ax=ax1)
 # I can confirm windspeed 0 data eleminated
 
 
-I need to process "feature selection"
-1. It's required to distinguish between meaningful data and noise
-1. It doesn't mean the more feature, the better performance
-1. It's recommended to add feature one by one with testing the performance and eliminate that feature if it turned out it's not that helpful feature
+# I need to process "feature selection"
+# 1. It's required to distinguish between meaningful data and noise
+# 1. It doesn't mean the more feature, the better performance
+# 1. It's recommended to add feature one by one with testing the performance and eliminate that feature if it turned out it's not that helpful feature
 # continuous feature and categorical feature 
 # continuous feature = ["temp","humidity","windspeed","atemp"]
 
@@ -148,7 +148,7 @@ for var in categorical_feature_names:
 
 # They show entire features
 feature_names = ["season", "weather", "temp", "atemp", "humidity", "windspeed", "year", "hour", "dayofweek", "holiday", "workingday"]
-print(feature_names)
+# print(feature_names)
 # ['season',
 #  'weather',
 #  'temp',
@@ -168,7 +168,116 @@ X_train = train[feature_names]
 # X_train.head()
 # table
 
+# I create a new matrix X_test after pre processing above
+X_test = test[feature_names]
+# print(X_test.shape)
+# (6493, 11)
+# X_test.head()
+# table
 
+# I use count feature as y data
+label_name = "count"
+y_train = train[label_name]
+# print(y_train.shape)
+# (10886,)
+# y_train.head()
+# 0     1
+# 1    36
+# 2    56
+# 3    84
+# 4    94
+# Name: count, dtype: int64
+
+
+# "bike sharing contest" is evaluated by RMSLE
+
+# I implement RMSLE algorithm in rmsle()
+from sklearn.metrics import make_scorer
+
+def rmsle(predicted_values, actual_values):
+    # I will use data as numpy array
+    predicted_values = np.array(predicted_values)
+    actual_values = np.array(actual_values)
+    
+    # I should implement this formular
+    # \sqrt{\frac{1}{n} \sum\limits_{i=1}^{n}(\log{(p_{i}+1)}-\log{(a_{i}+1)})^{2}}
+    log_predict = np.log(predicted_values + 1)
+    log_actual = np.log(actual_values + 1)
+    
+    difference = log_predict - log_actual
+    # difference = (log_predict - log_actual) ** 2
+    difference = np.square(difference)
+    
+    mean_difference = difference.mean()
+    
+    score = np.sqrt(mean_difference)
+    
+    return score
+
+rmsle_scorer = make_scorer(rmsle)
+# print(rmsle_scorer)
+
+
+# I will use KFold for cross validation
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+
+k_fold = KFold(n_splits=10, shuffle=True, random_state=0)
+
+
+# I will expect by random forest
+from sklearn.ensemble import RandomForestRegressor
+max_depth_list = []
+# n_estimators higher makes better precision but consuming more time to expect
+model = RandomForestRegressor(n_estimators=100, n_jobs=-1, random_state=0)
+# print(model)
+
+# I get the cross validation score 
+score = cross_val_score(model, X_train, y_train, cv=k_fold, scoring=rmsle_scorer)
+score = score.mean()
+# the closer to the 0 of score, it means better data
+# print("Score= {0:.5f}".format(score))
+
+
+# I make it learn by inputting feature(X_train), label(the answer, y_train)
+model.fit(X_train, y_train)
+
+# I make it predict based on learnt model by inputting X_test
+predictions = model.predict(X_test)
+
+# print(predictions.shape)
+# (6493,)
+print(predictions[0:10])
+# array([12.43, 5.07, 4.44, 3.65, 3.2, 6.38, 38.77, 104.51,  235.12,  135.72])
+
+
+# I visualize predicted data
+fig,(ax1,ax2)= plt.subplots(ncols=2)
+fig.set_size_inches(12,5)
+sns.distplot(y_train,ax=ax1,bins=50)
+ax1.set(title="train data of x features and y label")
+sns.distplot(predictions,ax=ax2,bins=50)
+ax2.set(title="predicted y value from test data of multiple x values")
+# I can see similar distribution of data between two of them
+
+# I will submit this code
+# For that, I need to input predicted values into sampleSubmission.csv file
+# First, I load that file
+submission = pd.read_csv("D://chromedown//sampleSubmission.csv")
+# I input predictions into submission's count column
+submission["count"] = predictions
+# print(submission.shape)
+# (6493, 2)
+print(submission.head())
+#               datetime  count
+# 0  2011-01-20 00:00:00  12.82
+# 1  2011-01-20 01:00:00   5.12
+# 2  2011-01-20 02:00:00   4.18
+# 3  2011-01-20 03:00:00   3.56
+# 4  2011-01-20 04:00:00   3.23
+
+# I create a file storing score in the contents and file name
+submission.to_csv("D://chromedown//Score_{0:.5f}_submission.csv".format(score), index=False)
 
 
 plt.show()
