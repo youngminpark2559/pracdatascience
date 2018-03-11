@@ -172,9 +172,9 @@ sns.pointplot(data=df,x="alpha",y="rmsle",ax=ax)
 # One of regularization methods - Lasso
 # Lasso regularization which is call L1 regularization tries to make a coefficient closer to 0
 # Some coefficient even becomes 0, which means the feature excluded from data can be occurred
-# It also can be meant that automatic feature selection is performed
+# It also can be meant that automatic feature selection is performed by lasso regularization
 # Default value of alpha is 1.0, to make underfitting decreased, I should make alpha value lower
-# When I execute the following Lasso-regularized model, best alpha value is 0.0025
+# When I execute the following Lasso-regularized model by GridSearchCV(), best alpha value turns out to be 0.00125
 
 lasso_m_ = Lasso()
 alpha  = 1/np.array([0.1, 1, 2, 3, 4, 10, 30,100,200,300,400,800,900,1000])
@@ -199,8 +199,61 @@ sns.pointplot(data=df,x="alpha",y="rmsle",ax=ax)
 # RMSLE Value For Lasso Regression:  0.980372782146
 
 
+# Ensemble Models - component 1 : Random Forest
+from sklearn.ensemble import RandomForestRegressor
+rfModel = RandomForestRegressor(n_estimators=100)
 
+# I preprocess y_train
+y_train_log = np.log1p(y_train)
+# I make the random Forest model to learn
+rfModel.fit(X_train, y_train_log)
 
+# I make the model to expect
+preds = rfModel.predict(X_train)
+score = rmsle(np.exp(y_train_log),np.exp(preds),False)
+print ("RMSLE Value For Random Forest: ",score)
+# RMSLE Value For Random Forest:  0.107075374495
 
+# Ensemble Model - component 2 : Gradient Boost
+# This is another ensemble technique by binding several dicision trees to make powerful expecting model
+# It can be used for both regression and classification
+# Unlike random forest, gradient boost makes tree in order as the way of complementing the error of tree
+# You won't get randomness and prior pruning is used in this process
+# Since not that deep tree of 1-5 steps is used, it consumes low memory, and has rapid expectation
+# learning_rate : controls how it revises error
+# If you increase n_estimators, you will get much more trees in your ensemble so that the complexity of model goes high
+# You will get more chances to fix error in the training data but at the same time, it can lead to overfitting with more complex model
+# max_depth(max_leaf_nodes) 
+
+from sklearn.ensemble import GradientBoostingRegressor
+gbm = GradientBoostingRegressor(n_estimators=4000, alpha=0.01);
+
+y_train_log = np.log1p(y_train)
+gbm.fit(X_train, y_train_log)
+
+preds = gbm.predict(X_train)
+
+score = rmsle(np.exp(y_train_log),np.exp(preds),False)
+
+print ("RMSLE Value For Gradient Boost: ", score)
+# RMSLE Value For Gradient Boost:  0.213574037272
+
+predsTest = gbm.predict(X_test)
+fig,(ax1,ax2)= plt.subplots(ncols=2)
+fig.set_size_inches(12,5)
+sns.distplot(y_train,ax=ax1,bins=50)
+sns.distplot(np.exp(predsTest),ax=ax2,bins=50)
+
+# Submit
+submission = pd.read_csv("D://chromedown//sampleSubmission.csv")
+# print(submission)
+
+submission["count"] = np.exp(predsTest)
+
+print(submission.shape)
+print(submission.head())  
+# (6493, 2)
+
+submission.to_csv("D://chromedown//Score_{0:.5f}_submission.csv".format(score), index=False)
 
 plt.show()
