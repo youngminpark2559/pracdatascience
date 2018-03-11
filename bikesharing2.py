@@ -131,3 +131,39 @@ lModel.fit(X_train, y_train_log)
 preds = lModel.predict(X_train)
 # I input predicted data into rmsle to evaluate how it is precise
 print("RMSLE Value For Linear Regression implemented above : ", rmsle(np.exp(y_train_log),np.exp(preds), False))
+
+
+# One of regularization methods - Ridge
+# 가중치(w)의 모든 원소가 0에 가깝게 만들어 모든 피처가 주는 영향을 최소화(기울기를 작게 만듦)
+# Regularization is used to make purposed noise to the hypothesis function not to make the model have overfitting
+ridge_m_ = Ridge()
+# I try max_iter = 3000 in this test
+# I will find optimal alpha value in 3000 iterations
+ridge_params_ = { 'max_iter':[3000],'alpha':[0.01, 0.1, 1, 2, 3, 4, 10, 30,100,200,300,400,800,900,1000]}
+rmsle_scorer = metrics.make_scorer(rmsle, greater_is_better=False)
+# I execute the GridSearchCV() with passing arguments(ridge regularization, alpha, scorer, cv)
+grid_ridge_m = GridSearchCV(ridge_m_,
+                          ridge_params_,
+                          scoring = rmsle_scorer,
+                          cv=5)
+
+y_train_log = np.log1p(y_train)
+# I make the model to learn by passing train data and label
+grid_ridge_m.fit(X_train, y_train_log)
+# I make the model to expect values correspoding X_train
+preds = grid_ridge_m.predict(X_train)
+# I show best_params_
+print(grid_ridge_m.best_params_)
+print("RMSLE Value after Ridge Regularization : ", rmsle(np.exp(y_train_log),np.exp(preds), False))
+
+# I visualize alpha and rmsle score
+fig,ax = plt.subplots()
+fig.set_size_inches(12,5)
+df = pd.DataFrame(grid_ridge_m.grid_scores_)
+df["alpha"] = df["parameters"].apply(lambda x:x["alpha"])
+df["rmsle"] = df["mean_validation_score"].apply(lambda x:-x)
+
+plt.xticks(rotation=30, ha='right')
+sns.pointplot(data=df,x="alpha",y="rmsle",ax=ax)
+
+plt.show()
